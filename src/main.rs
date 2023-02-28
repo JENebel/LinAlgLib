@@ -1,14 +1,15 @@
 use lin_alg_lib::*;
 
 fn main() {
-    let mut m1 = Matrix::new_templated(1, 4, 2);
+    let mut m1 = Matrix::new_templated(5, 2, 2);
 
-    let m2 = Matrix::new_templated(4, 4, 8);
+    m1 *= 10000000;
 
-    let m_sum = &m1 + &m2;
+    m1[(1, 0)] = 122;
+    m1[(2, 0)] = 12;
+    m1[(1, 1)] = 12;
+    m1[(4, 1)] = 12;
 
-    m1 -= &m2;
-
-    println!("Sum:\n{}", m_sum);
-    println!("M1:\n{}", m1);
+    println!("{m1}");
+    //println!("{}", m1.column(3));
 }

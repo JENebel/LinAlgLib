@@ -35,6 +35,27 @@ impl<T: Clone> Matrix<T> {
             data: vec![template; width * height],
         }
     }
+
+    pub fn row(&self, row: usize) -> Matrix<T> {
+        Self {
+            width: self.width,
+            height: 1,
+            data: self.data[self.width * row..self.width * row + self.width].iter().cloned().collect()
+        }
+    }
+
+    pub fn column(&self, column: usize) -> Matrix<T> {
+        let mut new_data = Vec::new();
+        for y in 0..self.height {
+            new_data.push(self.data[self.calc_index(column, y)].clone())
+        }
+
+        Self {
+            width: 1,
+            height: self.height,
+            data: new_data
+        }
+    }
 }
 
 impl<T> Index<(usize, usize)> for Matrix<T> {
@@ -53,32 +74,44 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
     }
 }
 
-impl<T: Display> Display for Matrix<T> {
+impl<T: Display + Clone> Display for Matrix<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[")?;
-        for y in 0..self.height {
-            if y > 0 {
-                write!(f, " ")?
-            }
+        let str_mat = self.to_string_matrix();
 
-            write!(f, "[")?;
-            for x in 0..self.width {
-                write!(f, "{}", self[(x, y)])?;
-
-                if x < self.width - 1 {
-                    write!(f, ", ")?
-                }
-            }
-
-            write!(f, "]")?;
-
-            if y < self.height - 1 {
-                write!(f, "\n")?
-            }
+        let mut cell_widths = Vec::new();
+        for x in 0..self.width {
+            cell_widths.push(str_mat.column(x).data.iter().map(|s| s.len()).max().unwrap())
         }
-        write!(f, "]")?;
+
+        let mut total_width: usize = cell_widths.iter().sum();
+        total_width += self.width * 2;
+
+        writeln!(f, "╭{:width$}╮", "", width=total_width)?;
+
+        for y in 0..self.height {
+            write!(f, "│ ")?;
+            for x in 0..self.width {
+                if x != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{:width$}", str_mat[(x, y)], width=cell_widths[x])?;
+            }
+            write!(f, " │\n")?;
+        }
+
+        writeln!(f, "╰{:width$}╯", "", width=total_width)?;
 
         Ok(())
+    }
+}
+
+impl<T: Display> Matrix<T> {
+    fn to_string_matrix(&self) -> Matrix<String> {
+        Matrix {
+            width: self.width,
+            height: self.height,
+            data: self.data.iter().map(|x| format!("{}", x)).collect()
+        }
     }
 }
 
