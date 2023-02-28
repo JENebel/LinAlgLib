@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::{Index, IndexMut, Add, AddAssign}};
+use std::{fmt::Display, ops::{Index, IndexMut, Add, AddAssign, Mul, MulAssign, Div, DivAssign, Sub, SubAssign}};
 
 #[derive(Clone)]
 pub struct Matrix<T> {
@@ -10,6 +10,10 @@ pub struct Matrix<T> {
 impl<T> Matrix<T> {
     fn calc_index(&self, x: usize, y: usize) -> usize {
         self.width * y + x
+    }
+
+    fn is_vector(&self) -> bool {
+        self.height == 1 || self.width == 1
     }
 }
 
@@ -49,55 +53,6 @@ impl<T> IndexMut<(usize, usize)> for Matrix<T> {
     }
 }
 
-impl<T> Add<&Matrix<T>> for &Matrix<T>
-where T: Add<T, Output = T> + Copy {
-    type Output = Matrix<T>;
-
-    fn add(self, rhs: &Matrix<T>) -> Self::Output {
-        let data: Vec<T> = self.data.iter().zip(rhs.data.iter()).map(|(l, r)| *l + *r).collect();
-
-        Matrix {
-            width: self.width,
-            height: self.height,
-            data,
-        }
-    }
-}
-
-impl<T> AddAssign<&Matrix<T>> for Matrix<T>
-where T: Add<T, Output=T> + Copy {
-    fn add_assign(&mut self, rhs: &Matrix<T>) {
-        self.data = self.data.iter().zip(rhs.data.iter()).map(|(l, r)| *l + *r).collect();
-    }
-}
-
-// Add matrix to constant
-impl<T> Add<T> for &Matrix<T>
-where T: Add<T, Output = T> + Copy {
-    type Output = Matrix<T>;
-
-    fn add(self, rhs: T) -> Self::Output {
-        let data: Vec<T> = self.data.iter().map(|l| *l + rhs).collect();
-
-        Matrix {
-            width: self.width,
-            height: self.height,
-            data,
-        }
-    }
-}
-
-impl<T> AddAssign<T> for Matrix<T>
-where T: AddAssign<T> + Copy {
-    fn add_assign(&mut self, rhs: T) {
-        for x in 0..self.width {
-            for y in 0..self.height {
-                self[(x, y)] += rhs
-            }
-        }
-    }
-}
-
 impl<T: Display> Display for Matrix<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
@@ -126,3 +81,53 @@ impl<T: Display> Display for Matrix<T> {
         Ok(())
     }
 }
+
+/// Operators
+macro_rules! implement_matrix_operator {
+    ($trait_name: ident, $fn_name: ident, $assign_trait_name: ident, $assign_fn_name: ident,  $operator: tt) => {
+        impl<T> $trait_name<&Matrix<T>> for &Matrix<T>
+        where T: $trait_name<T, Output = T> + Clone {
+            type Output = Matrix<T>;
+            fn $fn_name(self, rhs: &Matrix<T>) -> Self::Output {
+                // If they are not same size or row/column vectors of same length
+                if ((rhs.width != self.width) | (rhs.height != self.height)) &&
+                   !(self.is_vector() && rhs.is_vector() && self.data.len() == rhs.data.len()) {
+                    panic!("Incompatible matrices: ({}, {}) and ({}, {})", self.width, self.height, rhs.width, rhs.height)
+                }
+                Matrix {
+                    width: self.width,
+                    height: self.height,
+                    data: self.data.iter().zip(rhs.data.iter()).map(|(l, r)| l.clone() $operator r.clone()).collect()
+                }
+            }
+        }
+
+        impl<T> $trait_name<T> for &Matrix<T>
+        where T: $trait_name<T, Output = T> + Clone {
+            type Output = Matrix<T>;
+
+            fn $fn_name(self, rhs: T) -> Self::Output {
+                self.$fn_name(&Matrix::new_templated(self.width, self.height, rhs))
+            }
+        }
+
+        impl<T> $assign_trait_name<&Matrix<T>> for Matrix<T>
+        where T: $trait_name<T, Output = T>, T: Clone {
+            fn $assign_fn_name(&mut self, rhs: &Matrix<T>) {
+                self.data = self.$fn_name(rhs).data;
+            }
+        }
+
+        impl<T> $assign_trait_name<T> for Matrix<T>
+        where T: $trait_name<T, Output = T>, T: Clone {
+            fn $assign_fn_name(&mut self, rhs: T) {
+                self.data = self.$fn_name(rhs).data;
+            }
+        }
+    };
+}
+
+implement_matrix_operator!(Add, add, AddAssign, add_assign, +);
+implement_matrix_operator!(Sub, sub, SubAssign, sub_assign, -);
+implement_matrix_operator!(Mul, mul, MulAssign, mul_assign, *);
+implement_matrix_operator!(Div, div, DivAssign, div_assign, /);

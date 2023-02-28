@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "lin_alg"
+name = "lin_alg_lib"
 version = "0.1.0"
